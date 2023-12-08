@@ -141,7 +141,7 @@ dirpath='/Users/shehzailabbas/Documents/sheets/socketttt/extraction/files'
 filespath='/Users/shehzailabbas/Documents/sheets/socketttt/extraction'
 
 
-SERVER='192.168.206.16'
+SERVER='192.168.29.74'
 PORT=5050
 FORMAT='utf-8'
 HEADER=64

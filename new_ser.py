@@ -191,8 +191,8 @@ def client_mode(Connected):
                 print('rm: remove directory or file')
                 print('get: download directory or file from host computer')
                 print('ls: list directories and files')
-                print('switch: switch between modes\n')
-                print('switch: communicate with the host machine user\n')
+                print('switch: switch between modes')
+                print('com: communicate with the host machine user\n')
                 print('NOTE --> if any other command is passed it will simply run it on the host system as a python command and will return the response')
                 print('---------------------------------------------------------------')
             elif command=='ls':
@@ -222,7 +222,7 @@ def client_mode(Connected):
             elif command.split(" ")[0]=='cd':
                 send_command(command)
             elif command=='com':
-                if OS_sys!='Darwin' or OS_sys!='Windows':
+                if OS_sys!='Darwin' and OS_sys!='Windows':
                     print("doesn't support!!!")
                 else:
                     send_command(command)
@@ -334,8 +334,7 @@ DIRECTOREIES=[]
 
 dirpath='/Users/shehzailabbas/Documents/sheets/socketttt/extraction/files'
 filespath='/Users/shehzailabbas/Documents/sheets/socketttt/extraction'
-
-SERVER='192.168.206.16'
+SERVER='192.168.29.74'
 PORT=5050
 FORMAT='utf-8'
 ADDR=(SERVER,PORT)
