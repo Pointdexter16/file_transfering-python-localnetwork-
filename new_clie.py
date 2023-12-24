@@ -6,9 +6,42 @@ import shutil
 import tqdm
 import platform
 import subprocess
-
+import argparse
+from zipfile import ZipFile
 
 #fuctions
+
+def dir_size(path):
+    size=0
+    for folderName,_,fileName in os.walk(path):
+        for file in fileName:
+            filePath=os.path.join(folderName,file)
+            size+=os.path.getsize(filePath)
+    return byte_gb(size)
+
+def byte_gb(size):
+    return size/(1024**3)
+
+
+def zip_dir(path):  
+    initial_dir=os.getcwd()
+    zipFileName=f'{os.path.basename(path)}.zip'
+    with ZipFile(zipFileName,'w') as zipObject: 
+        os.chdir(path)
+        os.chdir('..')
+        for folderName,_,fileName in os.walk(os.path.basename(path)):
+            for file in fileName:
+                filePath=os.path.join(folderName,file)
+                zipObject.write(filePath)
+        os.chdir(initial_dir)
+
+    return zipFileName
+
+def unzip_dir(path):
+    with ZipFile(path,'r') as zipObject:
+        zipObject.extractall()
+        
+
 def send_response_text(response=None):
     response_encoded=response.encode(FORMAT)
     response_len=len(response_encoded)
@@ -74,20 +107,28 @@ def send_file(file_path):
             client.sendall(bytes_read)
     client.recv(4)
 
-def send_dir(dir_path):
-    dir_file_dic={}
-    for dirpath,_,filenames in os.walk(os.path.basename(dir_path)):
-        dir_file_dic.update({dirpath:filenames})
-    send_response_list(dir_file_dic)
-    protocol_completion=receive_command()
-    if protocol_completion=='protocol completed successfully':
-        for dir,filenames in dir_file_dic.items():
-            if bool(filenames):
-                for filename in filenames:
-                    path_file=os.path.join(dir,filename)
-                    send_file(path_file)
+def send_dir(dir_path,zip=False):
+    if dir_size(dir_path)>0.0001 or zip:
+        send_response_text('1')
+        file_name=zip_dir(dir_path)
+        send_response_text(file_name)
+        send_file(file_name)
+
     else:
-        pass
+        send_response_text('0')
+        dir_file_dic={}
+        for dirpath,_,filenames in os.walk(os.path.basename(dir_path)):
+            dir_file_dic.update({dirpath:filenames})
+        send_response_list(dir_file_dic)
+        protocol_completion=receive_command()
+        if protocol_completion=='protocol completed successfully':
+            for dir,filenames in dir_file_dic.items():
+                if bool(filenames):
+                    for filename in filenames:
+                        path_file=os.path.join(dir,filename)
+                        send_file(path_file)
+        else:
+            pass
 
 def receive_file(main_path='extraction'):
     bytes_received=0
@@ -136,13 +177,18 @@ def receive_dir():
 
     
 #initialization
+                    
+parser=argparse.ArgumentParser()
+parser.add_argument('-i','--ipAddress',help='pass ip address you want to use for the connection')
+parser.add_argument('-p','--port',help='pass port you want to use for the connection')
+args=parser.parse_args()
 
 dirpath='/Users/shehzailabbas/Documents/sheets/socketttt/extraction/files'
 filespath='/Users/shehzailabbas/Documents/sheets/socketttt/extraction'
 
+SERVER=args.ipAddress if args.ipAddress else '192.168.29.74'
+PORT=int(args.port) if args.port else 5050
 
-SERVER='192.168.29.74'
-PORT=5050
 FORMAT='utf-8'
 HEADER=64
 ADDR=(SERVER,PORT)
@@ -152,6 +198,7 @@ OS=platform.system()
 client=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 client.connect(ADDR)
 exec_response=''
+
 
 
 def main_code(communication_type):
@@ -206,7 +253,7 @@ def main_code(communication_type):
                 pass
             if(OS=='Darwin'):
                 mess='INITIALIZED'
-                while(mess!="Q!"):
+                while(mess!="Q" and mess!='q'):
                     subprocess.call(("killall",'TextEdit'))
                     with open("message.txt",'a') as f:
                         f.write(mess)
@@ -217,6 +264,7 @@ def main_code(communication_type):
                 pass
             else:
                 pass
+            os.remove("message.txt")
         elif command=='exit()' or command=='quit()':
             client.shutdown(1)
             client.close()
@@ -251,8 +299,11 @@ def main_code(communication_type):
                 pass
         else:
             try:
+                print(command)
                 exec('exec_response='+command)
-                print(exec_response,"response")
+                a=0
+                exec('a=1')
+                print(a)
                 if exec_response:
                     send_response_text(exec_response)
                 else:

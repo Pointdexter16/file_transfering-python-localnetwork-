@@ -11,12 +11,26 @@ import readline
 import tqdm
 import time
 import sys
+import argparse
+from zipfile import ZipFile
 
 
 
 
 
 #functions
+
+def dir_size(path):
+    size=0
+    for folderName,_,fileName in os.walk(path):
+        for file in fileName:
+            filePath=os.path.join(folderName,file)
+            size+=os.path.getsize(filePath)
+    return size
+
+def byte_gb(size):
+    return size/(1024**3)
+
 
 def complete(text, state):
     for dir in DIRECTOREIES:
@@ -112,6 +126,25 @@ def send_dir(dir_path):
         pass
 
 
+def zip_dir(path):  
+    initial_dir=os.getcwd()
+    zipFileName=f'{os.path.basename(path)}.zip'
+    with ZipFile(zipFileName,'w') as zipObject: 
+        os.chdir(path)
+        os.chdir('..')
+        for folderName,_,fileName in os.walk(os.path.basename(path)):
+            for file in fileName:
+                filePath=os.path.join(folderName,file)
+                zipObject.write(filePath)
+        os.chdir(initial_dir)
+
+    return zipFileName
+
+def unzip_dir(path):
+    with ZipFile(path,'r') as zipObject:
+        zipObject.extractall()
+        
+
 def receive_file(main_path='extraction'):
     bytes_received=0
     comm_len=(conn.recv(HEADER)).decode(FORMAT)
@@ -131,38 +164,47 @@ def receive_file(main_path='extraction'):
     conn.send('done'.encode('utf-8'))
 
 def receive_dir():
-    initial_time=time.time()
-    dir_dic=receive_response_dir()
-    os.chdir('extraction')
-    if os.path.exists(list(dir_dic.keys())[0]):
-        if input('Enter (y) if you want to overwrite the folder \n')=='y':
-            shutil.rmtree(list(dir_dic.keys())[0])
+    Zip=int(receive_response())
+    if Zip:
+        print(Zip)
+        file_name=receive_response()
+        receive_file()
+        os.chdir('extraction')
+        unzip_dir(file_name)
+        os.remove(file_name)
+    else:
+        initial_time=time.time()
+        dir_dic=receive_response_dir()
+        os.chdir('extraction')
+        if os.path.exists(list(dir_dic.keys())[0]):
+            if input('Enter (y) if you want to overwrite the folder \n')=='y':
+                shutil.rmtree(list(dir_dic.keys())[0])
+                send_command('protocol completed successfully')       
+                for dir in dir_dic:
+                    if OS_sys=='Windows':
+                        os.mkdir('/'.join(dir.split('\\')))
+                    else:
+                        os.mkdir(dir)
+                for dir,filenames in dir_dic.items():
+                    if bool(filenames):
+                        for filename in filenames:
+                            receive_file(main_path='/'.join(dir.split('\\')))
+                            
+            else:
+                send_command('aboard')
+                print('File already exists please try again!')
+        else:
             send_command('protocol completed successfully')       
             for dir in dir_dic:
-                if OS_sys=='Windows':
-                    os.mkdir('/'.join(dir.split('\\')))
-                else:
-                    os.mkdir(dir)
+                    if OS_sys=='Windows':
+                        os.mkdir('/'.join(dir.split('\\')))
+                    else:
+                        os.mkdir(dir)
             for dir,filenames in dir_dic.items():
                 if bool(filenames):
                     for filename in filenames:
                         receive_file(main_path='/'.join(dir.split('\\')))
-                        
-        else:
-            send_command('aboard')
-            print('File already exists please try again!')
-    else:
-        send_command('protocol completed successfully')       
-        for dir in dir_dic:
-                if OS_sys=='Windows':
-                    os.mkdir('/'.join(dir.split('\\')))
-                else:
-                    os.mkdir(dir)
-        for dir,filenames in dir_dic.items():
-            if bool(filenames):
-                for filename in filenames:
-                    receive_file(main_path='/'.join(dir.split('\\')))
-    print(time.time()-initial_time)
+        print(time.time()-initial_time)
 def client_mode(Connected):
     DIRECTOREIES=[]
     def complete(text, state):
@@ -227,7 +269,7 @@ def client_mode(Connected):
                 else:
                     send_command(command)
                     mess=input("Press enter to start and if you wish to quit this mode enter Q! anytime\n")
-                    while(mess!='Q'):
+                    while(mess!='Q' and mess!='q'):
                         mess=input("message->")
                         send_command(mess)
                         print('sent')
@@ -332,10 +374,18 @@ def self_mode(Connected):
 #initialization
 DIRECTOREIES=[]
 
+parser=argparse.ArgumentParser()
+parser.add_argument('-i','--ipAddress',help='pass ip address you want to use for the connection')
+parser.add_argument('-p','--port',help='pass port you want to use for the connection')
+args=parser.parse_args()
+
 dirpath='/Users/shehzailabbas/Documents/sheets/socketttt/extraction/files'
 filespath='/Users/shehzailabbas/Documents/sheets/socketttt/extraction'
-SERVER='192.168.29.74'
-PORT=5050
+
+SERVER=args.ipAddress if args.ipAddress else '192.168.29.74'
+PORT=int(args.port) if args.port else 5050
+
+
 FORMAT='utf-8'
 ADDR=(SERVER,PORT)
 HEADER=64
